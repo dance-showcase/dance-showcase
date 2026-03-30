@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<title>管理ページ</title>
+
+<style>
+body { font-family: sans-serif; padding: 20px; }
+.item { padding: 10px; margin: 5px; border: 1px solid #ccc; }
+button { margin: 3px; padding: 5px 10px; }
+.editBox { margin-top: 10px; padding: 10px; border: 1px dashed #aaa; }
+input { margin: 3px; padding: 5px; }
+</style>
+</head>
+
+<body>
+
+<h1>管理ページ（幹部専用）</h1>
+
+<div id="login">
+  <input type="password" id="pass" placeholder="パスワード">
+  <button onclick="login()">ログイン</button>
+</div>
+
+<div id="admin" style="display:none;">
+  <h2>提出されたショーケース</h2>
+  <div id="list"></div>
+</div>
+
+<script type="module">
+
+import { initializeApp } from "https://www.gstatic.com/firebasejs/12.11.0/firebase-app.js";
+import { getFirestore, collection, getDocs, deleteDoc, doc, updateDoc } from "https://www.gstatic.com/firebasejs/12.11.0/firebase-firestore.js";
+
+const firebaseConfig = {
+  apiKey: "AIzaSyD3TK6srZgRPVIPsrjZOmeNnpAdjzAn4i8",
+  authDomain: "dance-294f2.firebaseapp.com",
+  projectId: "dance-294f2",
+  storageBucket: "dance-294f2.firebasestorage.app",
+  messagingSenderId: "930917646427",
+  appId: "1:930917646427:web:fe66d09cc5dd8ae7febf7e"
+};
+
+const app = initializeApp(firebaseConfig);
+const db = getFirestore(app);
+
+const PASSWORD = "kanbu_only";
+
+let data = [];
+
+// 🔐 ログイン
+window.login = function(){
+  const input = document.getElementById("pass").value;
+
+  if(input === PASSWORD){
+    document.getElementById("login").style.display = "none";
+    document.getElementById("admin").style.display = "block";
+    loadData();
+  } else {
+    alert("パスワード違う！");
+  }
+};
+
+// 📥 データ取得
+async function loadData(){
+  data = [];
+  const snap = await getDocs(collection(db, "shows"));
+
+  snap.forEach(docSnap=>{
+    data.push({ id: docSnap.id, ...docSnap.data() });
+  });
+
+  render();
+}
+
+// 🖥 表示
+function render(){
+  const list = document.getElementById("list");
+  list.innerHTML = "";
+
+  data.forEach((item,i)=>{
+    const div = document.createElement("div");
+    div.className = "item";
+
+    div.innerHTML = `
+      <b>${item.name}</b>
+
+      <br>
+      <button onclick="deleteItem(${i})">削除</button>
+      <button onclick="toggleEdit(${i})">編集</button>
+
+      <div id="edit-${i}" class="editBox" style="display:none;">
+        <input id="name-${i}" value="${item.name}">
+        <input id="members-${i}" value="${item.members}">
+        <input id="desc-${i}" value="${item.desc}">
+        <input id="group-${i}" value="${item.group || ""}">
+        <input id="order-${i}" type="number" value="${item.order || 0}">
+
+        <button onclick="saveEdit(${i})">保存</button>
+      </div>
+    `;
+
+    list.appendChild(div);
+  });
+}
+
+// ✏️ 編集表示
+window.toggleEdit = function(i){
+  const box = document.getElementById("edit-" + i);
+  box.style.display = box.style.display === "none" ? "block" : "none";
+};
+
+// 💾 保存
+window.saveEdit = async function(i){
+
+  const item = data[i];
+
+  await updateDoc(doc(db, "shows", item.id), {
+    name: document.getElementById("name-"+i).value,
+    members: document.getElementById("members-"+i).value,
+    desc: document.getElementById("desc-"+i).value,
+    group: document.getElementById("group-"+i).value,
+    order: Number(document.getElementById("order-"+i).value)
+  });
+
+  loadData();
+};
+
+// 🗑 削除
+window.deleteItem = async function(i){
+  await deleteDoc(doc(db, "shows", data[i].id));
+  loadData();
+};
+
+</script>
+
+</body>
+</html>
